@@ -32,10 +32,13 @@ GAUL0 <- terra::aggregate(FAO.GAUL1, by=c("iso3_code", "map_code", "gaul0_code")
 # add common columns for admin codes and names
 GAUL0$gaul_code <- GAUL0$gaul0_code
 GAUL0$gaul_name <- GAUL0$gaul0_name
+GAUL0$gaul_level <- 0
 FAO.GAUL1$gaul_code <- FAO.GAUL1$gaul1_code
 FAO.GAUL1$gaul_name <- FAO.GAUL1$gaul1_name
+FAO.GAUL1$gaul_level <- 1
 FAO.GAUL2$gaul_code <- FAO.GAUL2$gaul2_code
 FAO.GAUL2$gaul_name <- FAO.GAUL2$gaul2_name
+FAO.GAUL2$gaul_level <- 2
 
 # FEDERATED COUNTRIES LAYER
 #list of federated countries
@@ -53,7 +56,7 @@ GAUL0.no.fed.countries$gaul_name <- GAUL0.no.fed.countries$gaul0_name
 EFSA.admin.distribution <- rbind(GAUL0.no.fed.countries, GAUL1.fed)
 
 # Create one single file inlcuding all levels
-FAO.GAUL.colnames.to.keep <- c("iso3_code",  "map_code","continent", "disp_en", "gaul_code", "gaul_name")
+FAO.GAUL.colnames.to.keep <- c("iso3_code",  "map_code","continent", "disp_en", "gaul_code", "gaul_name", "gaul_level")
 GAUL0 <- GAUL0[,FAO.GAUL.colnames.to.keep]
 FAO.GAUL1 <- FAO.GAUL1[,FAO.GAUL.colnames.to.keep]
 FAO.GAUL2 <- FAO.GAUL2[,FAO.GAUL.colnames.to.keep]
@@ -77,6 +80,8 @@ terra::writeVector(EFSA.distribution.simpl, paste0(output.dir, "EFSA_distributio
 save(EFSA.distribution.simpl, file=paste0(output.dir, "EFSA_pest_distribution_layer.RData"))
 save(GAUL0.simpl, GAUL1.simpl, GAUL2.simpl, file=paste0(output.dir, "FAO_GAUL_single_layers.RData"))
 save(FAO.GAUL.full.simpl, file=paste0(output.dir, "FAO_GAUL_all_layers.RData"))
+
+write.csv2(as.data.frame(FAO.GAUL.full), file = paste0(output.dir, "FAO.GAUL.admin.table.csv"), row.names = FALSE)
 
 #terra::writeVector(GAUL.distribution, paste0(output.dir, "distribution.map.GAUL.full.geojson") , filetype = "GeoJSON", overwrite = TRUE)
 #terra::writeVector(GAUL.distribution, paste0(dir.fao, "GAUL.EFSA") , filetype = "GeoJSON", overwrite = TRUE)
