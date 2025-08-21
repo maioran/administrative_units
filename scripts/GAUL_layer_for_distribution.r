@@ -25,6 +25,11 @@ dir.fao.l2 <- paste0()
 FAO.GAUL1 <- terra::vect(paste0(input.dir,"GAUL_2024_L1\\GAUL_2024_L1.shp"))
 FAO.GAUL2 <- terra::vect(paste0(input.dir,"GAUL_2024_L2\\GAUL_2024_L2.shp"))
 
+# FAO.GAUL1$disp_en <- gsub(", ", "_", FAO.GAUL1$disp_en)
+# FAO.GAUL2$disp_en <- gsub(", ", "_", FAO.GAUL2$disp_en)
+# FAO.GAUL1$disp_en <- gsub(",", "_", FAO.GAUL1$disp_en)
+# FAO.GAUL2$disp_en <- gsub(",", "_", FAO.GAUL2$disp_en)
+
 # CREATE GAUL 0
 # aggregate to create GAUL level 0
 GAUL0 <- terra::aggregate(FAO.GAUL1, by=c("iso3_code", "map_code", "gaul0_code"))
@@ -46,17 +51,20 @@ fed.countries <- c("Canada", "United States of America", "Brazil", "Russian Fede
 # layer with federated countries
 GAUL1.fed <- FAO.GAUL1[FAO.GAUL1$gaul0_name %in% fed.countries,]
 
+FAO.GAUL.colnames.to.keep <- c("iso3_code",  "map_code","continent", "disp_en", "gaul_code", "gaul_name", "gaul_level")
+
 # BUILD EFSA PEST DISTRIBUTION LAYER
 # from GAUL 0 remove fed countries
 GAUL0.no.fed.countries <- GAUL0[!(GAUL0$gaul0_name %in% fed.countries),]
 #add column for single admin code and name
-GAUL0.no.fed.countries$gaul_code <- GAUL0.no.fed.countries$gaul0_code
-GAUL0.no.fed.countries$gaul_name <- GAUL0.no.fed.countries$gaul0_name
-
+GAUL0.no.fed.countries$gaul_code  <- GAUL0.no.fed.countries$gaul0_code
+GAUL0.no.fed.countries$gaul_name  <- GAUL0.no.fed.countries$gaul0_name
+GAUL0.no.fed.countries$gaul_level <- 0
+GAUL0.no.fed.countries <- GAUL0.no.fed.countries[,FAO.GAUL.colnames.to.keep]
+GAUL1.fed <- GAUL1.fed[,FAO.GAUL.colnames.to.keep]
 EFSA.admin.distribution <- rbind(GAUL0.no.fed.countries, GAUL1.fed)
 
 # Create one single file inlcuding all levels
-FAO.GAUL.colnames.to.keep <- c("iso3_code",  "map_code","continent", "disp_en", "gaul_code", "gaul_name", "gaul_level")
 GAUL0 <- GAUL0[,FAO.GAUL.colnames.to.keep]
 FAO.GAUL1 <- FAO.GAUL1[,FAO.GAUL.colnames.to.keep]
 FAO.GAUL2 <- FAO.GAUL2[,FAO.GAUL.colnames.to.keep]
@@ -80,8 +88,13 @@ terra::writeVector(EFSA.distribution.simpl, paste0(output.dir, "EFSA_distributio
 save(EFSA.distribution.simpl, file=paste0(output.dir, "EFSA_pest_distribution_layer.RData"))
 save(GAUL0.simpl, GAUL1.simpl, GAUL2.simpl, file=paste0(output.dir, "FAO_GAUL_single_layers.RData"))
 save(FAO.GAUL.full.simpl, file=paste0(output.dir, "FAO_GAUL_all_layers.RData"))
+FAO.GAUL.full.table <- as.data.frame(FAO.GAUL.full)
 
-write.csv2(as.data.frame(FAO.GAUL.full), file = paste0(output.dir, "FAO.GAUL.admin.table.csv"), row.names = FALSE)
+FAO.GAUL.full.table <- FAO.GAUL.full.table %>%
+  mutate(across(where(is.character), ~ gsub(",", "_", .)))
+write.csv(FAO.GAUL.full.table, file = paste0(output.dir, "FAO.GAUL.admin.table.csv"), row.names = FALSE)
+
+openxlsx::write.xlsx(FAO.GAUL.full.table, paste0(output.dir, "FAO.GAUL.admin.table.txt"))
 
 #terra::writeVector(GAUL.distribution, paste0(output.dir, "distribution.map.GAUL.full.geojson") , filetype = "GeoJSON", overwrite = TRUE)
 #terra::writeVector(GAUL.distribution, paste0(dir.fao, "GAUL.EFSA") , filetype = "GeoJSON", overwrite = TRUE)
