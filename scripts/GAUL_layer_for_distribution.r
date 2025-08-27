@@ -10,15 +10,26 @@ rm(list=ls())
 gc()
 library(dplyr)
 
+# set main directories
 output_dir    <- "outputs\\FAO_GAUL\\"
 input_dir     <- "data\\raw\\FAO_GAUL\\"
 data_dir      <- "Data\\"
 
-# vector simplification tolerance
+# set geometry simplification tolerance
 i_tolerance=0.01
 
-# list of federated countries
+# set list of federated countries
 fed_countries_list <- c("Canada", "United States of America", "Brazil", "Russian Federation", "India", "China", "Australia")
+
+# set fields to keep for gaul attribute tables
+colnames_to_keep <- c("iso3_code",
+                      "continent",
+                      "disp_en",
+                      "fed_country",
+                      "gaul0_code", "gaul0_name",
+                      "gaul1_code", "gaul1_name", 
+                      "gaul2_code", "gaul2_name",
+                      "gaul_code", "gaul_name", "gaul_level")
 
 # load functions
 source("scripts\\fun_generate_EFSA_pest_distribution_layer.r")
@@ -34,6 +45,7 @@ gaul2_raw <- terra::vect(paste0(input_dir,"GAUL_2024_L2\\GAUL_2024_L2.shp"))
 # aggregate to create GAUL level 0
 gaul0_raw <- terra::aggregate(gaul1_raw, by=c("iso3_code", "map_code", "gaul0_code"))
 
+# clone data in order to not touch raw data
 gaul0 <- gaul0_raw
 gaul1 <- gaul1_raw
 gaul2 <- gaul2_raw
@@ -49,26 +61,17 @@ gaul2$gaul_code <- gaul2$gaul2_code
 gaul2$gaul_name <- gaul2$gaul2_name
 gaul2$gaul_level <- 2
 
-colnames_to_keep <- c("iso3_code",
-                     "continent",
-                     "disp_en",
-                     "fed_country",
-                     "gaul0_code", "gaul0_name",
-                     "gaul1_code", "gaul1_name", 
-                     "gaul2_code", "gaul2_name",
-                     "gaul_code", "gaul_name", "gaul_level")
-
 # add missing columns
 gaul0 <- standardise_attribute_table(colnames_to_keep, gaul0)
 gaul1 <- standardise_attribute_table(colnames_to_keep, gaul1)
 gaul2 <- standardise_attribute_table(colnames_to_keep, gaul2)
 
-# specify if admin unit is in a federated country or not
+# specify in dedicated field if admin unit is in a federated country or not
 gaul0$fed_country <- gaul0$gaul0_name %in% fed_countries_list
 gaul1$fed_country <- gaul1$gaul0_name %in% fed_countries_list
 gaul2$fed_country <- gaul2$gaul0_name %in% fed_countries_list
 
-# Create one single file including all levels
+# Create one single layer including all administrative levels
 fao_gaul_all_levels <- rbind(gaul0, gaul1, gaul2)
 
 # create EFSA pest distribution base layer
@@ -82,21 +85,21 @@ gaul1_simpl                        <- terra::simplifyGeom(gaul1, tolerance=i_tol
 gaul2_simpl                        <- terra::simplifyGeom(gaul2, tolerance=i_tolerance, preserveTopology=TRUE, makeValid=TRUE)
 fao_gaul_all_levels_simpl          <- terra::simplifyGeom(fao_gaul_all_levels, tolerance=i_tolerance, preserveTopology=TRUE, makeValid=TRUE)
 
-# write layers and RData files
+# write layers in geojson
 terra::writeVector(gaul0_simpl , paste0(output_dir, "GAUL_2024_L0_simpl",i_tolerance,".geojson") , filetype = "GeoJSON", overwrite = TRUE)
 terra::writeVector(gaul1_simpl , paste0(output_dir, "GAUL_2024_L1_simpl",i_tolerance,".geojson") , filetype = "GeoJSON", overwrite = TRUE)
 terra::writeVector(gaul2_simpl , paste0(output_dir, "GAUL_2024_L2_simpl",i_tolerance,".geojson") , filetype = "GeoJSON", overwrite = TRUE)
-terra::writeVector(fao_gaul_all_levels_simpl , paste0(output_dir, "c",i_tolerance,".geojson") , filetype = "GeoJSON", overwrite = TRUE)
-terra::writeVector(efsa_pest_distribution_layer_simpl, paste0(output_dir, "EFSA_distribution_layer_simpl005.geojson") , filetype = "GeoJSON", overwrite = TRUE)
+terra::writeVector(fao_gaul_all_levels_simpl , paste0(output_dir, "GAUL_FULL_simpl",i_tolerance,".geojson") , filetype = "GeoJSON", overwrite = TRUE)
+terra::writeVector(efsa_pest_distribution_layer_simpl, paste0(output_dir, "EFSA_pest_distribution_layer_simpl005.geojson") , filetype = "GeoJSON", overwrite = TRUE)
 
-# save(EFSA.distribution.simpl, file=paste0(output_dir, "EFSA_distribution_layer_simpl005.RData"))
-# save(gaul0_simpl, GAUL1.simpl, gaul2_simpl, file=paste0(output_dir, "FAO_GAUL_single_layers.RData"))
-# save(FAO.GAUL.full.simpl, file=paste0(output_dir, "FAO_GAUL_full_simpl.RData"))
+# dataframe including all codes and names of all gaul administrative levels 
 FAO_GAUL_full_table <- as.data.frame(fao_gaul_all_levels)
 
+# replace "," with "_" to avoid reading file issues
 FAO_GAUL_full_table <- FAO_GAUL_full_table %>%
   mutate(across(where(is.character), ~ gsub(",", "_", .)))
-write.csv(FAO_GAUL_full_table, file = paste0(output_dir, "FAO_GAUL_admin_table.csv"), row.names = FALSE)
 
+# write csv and xlsx
+write.csv(FAO_GAUL_full_table, file = paste0(output_dir, "FAO_GAUL_admin_table.csv"), row.names = FALSE)
 openxlsx::write.xlsx(FAO_GAUL_full_table, paste0(output_dir, "FAO_GAUL_admin_table.xlsx"))
 
