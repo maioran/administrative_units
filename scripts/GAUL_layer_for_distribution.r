@@ -31,6 +31,8 @@ colnames_to_keep <- c("iso3_code",
                       "gaul2_code", "gaul2_name",
                       "gaul_code", "gaul_name", "gaul_level")
 
+
+
 # load functions
 source("scripts\\fun_generate_EFSA_pest_distribution_layer.r")
 source("scripts\\fun_standardise_fao_gaul_attribute_tables.r")
@@ -49,7 +51,7 @@ gaul0_raw <- terra::aggregate(gaul1_raw, by=c("iso3_code", "map_code", "gaul0_co
 gaul0 <- gaul0_raw
 gaul1 <- gaul1_raw
 gaul2 <- gaul2_raw
-
+rm(gaul0_raw, gaul1_raw, gaul2_raw)
 # add common columns for admin codes and names
 gaul0$gaul_code <- gaul0$gaul0_code
 gaul0$gaul_name <- gaul0$gaul0_name
@@ -73,6 +75,35 @@ gaul2$fed_country <- gaul2$gaul0_name %in% fed_countries_list
 
 # Create one single layer including all administrative levels
 fao_gaul_all_levels <- rbind(gaul0, gaul1, gaul2)
+
+# Create a field inclduing gaul1 for federated countries or gaul0 for not federated countries
+# this field is a service field to be used when mapping pest distribution
+fao_gaul_all_levels$gaul_distribution_code <- NA
+
+# Add gaul_distribution_code to attribute table
+# terra::values(fao_gaul_all_levels)$gaul_distribution_code <- ifelse(terra::values(fao_gaul_all_levels)$fed_country,
+#                                                                     terra::values(fao_gaul_all_levels)$gaul1_code, # when TRUE
+#                                                                     terra::values(fao_gaul_all_levels)$gaul0_code)   # when FALSE
+# 
+# add gaul_distribution_code and gaul_distribution_name
+attr_table <- terra::values(fao_gaul_all_levels)
+
+attr_table <- attr_table %>%
+  mutate(gaul_distribution_code = case_when(
+    fed_country & !is.na(gaul1_code) ~ gaul1_code,
+    TRUE                             ~ gaul0_code
+  )) %>%
+  mutate(gaul_distribution_name = case_when(
+    fed_country & !is.na(gaul1_name) ~ gaul1_name,
+    TRUE                             ~ gaul0_name
+  ))
+
+terra::values(fao_gaul_all_levels) <- attr_table
+
+# # Add gaul_distribution_code
+# fao_gaul_all_levels$gaul_distribution_name <- ifelse(fao_gaul_all_levels$fed_country,
+#                                       fao_gaul_all_levels$gaul1_name,   # when TRUE
+#                                       fao_gaul_all_levels$gaul0_name)   # when FALSE
 
 # create EFSA pest distribution base layer
 efsa_pest_distribution_layer <- 

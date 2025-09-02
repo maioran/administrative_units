@@ -4,6 +4,9 @@ generate_efsa_pest_distribution_layer <- function(fed_countries_list, gaul1, gau
 {
   # vector with federated countries GAUL level 1
   gaul1_fed_countries <- gaul1[gaul1$gaul0_name %in% fed_countries_list,]
+  # add kosovo
+  kosovo <- gaul1[which(gaul1$gaul1_name == "Kosovo"),]
+  gaul1_fed_countries <- rbind(gaul1_fed_countries, kosovo)
   # vector with no federated countries
   gaul0_no_fed_countries <- gaul0[!(gaul0$gaul0_name %in% fed_countries_list),]
   # add field including gaul code, gaul name, gaul level
