@@ -21,6 +21,10 @@ i_tolerance=0.01
 # set list of federated countries
 fed_countries_list <- c("Canada", "United States of America", "Brazil", "Russian Federation", "India", "China", "Australia")
 
+# list of disputed territories
+list_disputed_territories <- c("Kosovo", "Palestine")
+related_disputed_countries <- c("Serbia", "Israel")
+
 # set fields to keep for gaul attribute tables
 colnames_to_keep <- c("iso3_code",
                       "continent",
@@ -36,6 +40,7 @@ colnames_to_keep <- c("iso3_code",
 # load functions
 source("scripts\\fun_generate_EFSA_pest_distribution_layer.r")
 source("scripts\\fun_standardise_fao_gaul_attribute_tables.r")
+source("scripts\\fun_rearrange_disputed_territories.r")
 
 # Open raw datasets
 # FAO GAUL
@@ -109,6 +114,9 @@ terra::values(fao_gaul_all_levels) <- attr_table
 efsa_pest_distribution_layer <- 
   generate_efsa_pest_distribution_layer(fed_countries_list, gaul1, gaul0)
 
+
+
+
 # simplify layers using user defined tolerance
 efsa_pest_distribution_layer_simpl <- terra::simplifyGeom(efsa_pest_distribution_layer, tolerance=i_tolerance, preserveTopology=TRUE, makeValid=TRUE)
 gaul0_simpl                        <- terra::simplifyGeom(gaul0, tolerance=i_tolerance, preserveTopology=TRUE, makeValid=TRUE)
@@ -116,12 +124,27 @@ gaul1_simpl                        <- terra::simplifyGeom(gaul1, tolerance=i_tol
 gaul2_simpl                        <- terra::simplifyGeom(gaul2, tolerance=i_tolerance, preserveTopology=TRUE, makeValid=TRUE)
 fao_gaul_all_levels_simpl          <- terra::simplifyGeom(fao_gaul_all_levels, tolerance=i_tolerance, preserveTopology=TRUE, makeValid=TRUE)
 
+disputed_territories <- terra::subset(efsa_pest_distribution_layer_simpl, efsa_pest_distribution_layer_simpl$gaul_name %in%
+                                        list_disputed_territories)
+
+efsa_pest_distribution_layer_simpl_v02 <- efsa_pest_distribution_layer_simpl
+for(n_disputed_territories in 1:length(disputed_territories))
+{
+  
+  disputed_territory <- list_disputed_territories[n_disputed_territories]
+  related_disputed_country    <- related_disputed_countries[n_disputed_territories]
+  
+  efsa_pest_distribution_layer_simpl_v02 <- rearrange_disputed_territories(disputed_territory, related_disputed_country, efsa_pest_distribution_layer_simpl_v02)
+  
+}
+
 # write layers in geojson
 terra::writeVector(gaul0_simpl , paste0(output_dir, "GAUL_2024_L0_simpl",i_tolerance,".geojson") , filetype = "GeoJSON", overwrite = TRUE)
 terra::writeVector(gaul1_simpl , paste0(output_dir, "GAUL_2024_L1_simpl",i_tolerance,".geojson") , filetype = "GeoJSON", overwrite = TRUE)
 terra::writeVector(gaul2_simpl , paste0(output_dir, "GAUL_2024_L2_simpl",i_tolerance,".geojson") , filetype = "GeoJSON", overwrite = TRUE)
 terra::writeVector(fao_gaul_all_levels_simpl , paste0(output_dir, "GAUL_FULL_simpl",i_tolerance,".geojson") , filetype = "GeoJSON", overwrite = TRUE)
-terra::writeVector(efsa_pest_distribution_layer_simpl, paste0(output_dir, "EFSA_pest_distribution_layer_simpl005.geojson") , filetype = "GeoJSON", overwrite = TRUE)
+terra::writeVector(efsa_pest_distribution_layer_simpl_v02, paste0(output_dir, "EFSA_pest_distribution_dissolved_disputed_terr", i_tolerance,".geojson") , filetype = "GeoJSON", overwrite = TRUE)
+terra::writeVector(disputed_territories, paste0(output_dir, "disputed_territories", i_tolerance,".geojson") , filetype = "GeoJSON", overwrite = TRUE)
 
 # dataframe including all codes and names of all gaul administrative levels 
 FAO_GAUL_full_table <- as.data.frame(fao_gaul_all_levels)
