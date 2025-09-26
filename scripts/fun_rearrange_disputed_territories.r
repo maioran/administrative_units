@@ -4,8 +4,6 @@ rearrange_disputed_territories <- function(disputed_territory, related_disputed_
   disputed_and_countries <- terra::subset(efsa_pest_distribution_layer_simpl, efsa_pest_distribution_layer_simpl$gaul_name %in%
                                     c(related_disputed_country,disputed_territory))
   
-  
-  
   disputed_and_countries_snap <- terra::snap(disputed_and_countries, disputed_and_countries, tolerance=0.01)
   disputed_and_countries_agg <- terra::aggregate(disputed_and_countries_snap)
   
